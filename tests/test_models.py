@@ -80,6 +80,8 @@ class TestProductModel(unittest.TestCase):
         self.assertEqual(product.description, "A red hat")
         self.assertEqual(product.available, True)
         self.assertEqual(product.price, 12.50)
+        price_product = Product.find_by_price("12.50")
+        self.assertTrue(price_product is not None)
         self.assertEqual(product.category, Category.CLOTHS)
 
     def test_add_a_product(self):
@@ -101,6 +103,103 @@ class TestProductModel(unittest.TestCase):
         self.assertEqual(new_product.available, product.available)
         self.assertEqual(new_product.category, product.category)
 
-    #
-    # ADD YOUR TEST CASES HERE
-    #
+    def test_read_a_product(self):
+        """It should Read a Product"""
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+        found_product = Product.find(product.id)
+        self.assertEqual(found_product.name, product.name)
+        self.assertEqual(found_product.description, product.description)
+        self.assertEqual(Decimal(found_product.price), product.price)
+        self.assertEqual(found_product.available, product.available)
+        self.assertEqual(found_product.category, product.category)
+        # Testing de/serialization exceptions
+        serialized_product = Product.serialize(product)
+        self.assertIsNotNone(serialized_product)
+        bool_error = serialized_product.copy()
+        bool_error["available"] = "text"
+        with self.assertRaises(Exception):
+            product.deserialize(bool_error)
+        attribute_error = serialized_product.copy()
+        attribute_error["category"] = "invalid"
+        with self.assertRaises(Exception):
+            product.deserialize(attribute_error)
+        type_error = serialized_product.copy()
+        type_error["price"] = None
+        with self.assertRaises(Exception):
+            product.deserialize(type_error)
+
+    def test_update_a_product(self):
+        """It should Update a Product"""
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+        product.name = "new name"
+        product.description = "new description"
+        product_id = product.id
+        product.update()
+        self.assertEqual(product.id, product_id)
+        self.assertEqual(product.name, "new name")
+        self.assertEqual(product.description, "new description")
+        products = Product.all()
+        self.assertEqual(len(products), 1)
+        self.assertEqual(products[0].id, product_id)
+        self.assertEqual(products[0].name, "new name")
+        self.assertEqual(products[0].description, "new description")
+
+    def test_delete_a_product(self):
+        """It should Delete Product"""
+        product = ProductFactory()
+        product.create()
+        self.assertEqual(len(Product.all()), 1)
+        product.delete()
+        self.assertEqual(len(Product.all()), 0)
+
+    def test_list_all_products(self):
+        """It should List all products in the database"""
+        products = Product.all()
+        self.assertEqual(products, [])
+        for _ in range(5):
+            product = ProductFactory()
+            product.create()
+        products = Product.all()
+        self.assertEqual(len(products), 5)
+
+    def test_find_by_name(self):
+        """It should Find a Product by name"""
+        products = ProductFactory.create_batch(5)
+        for product in products:
+            product.create()
+        name = products[0].name
+        count = len([product for product in products if product.name == name])
+        found = Product.find_by_name(name)
+        self.assertEqual(found.count(), count)
+        for product in found:
+            self.assertEqual(product.name, name)
+
+    def test_find_by_availability(self):
+        """It shoud Find Products by Availability"""
+        products = ProductFactory.create_batch(10)
+        for product in products:
+            product.create()
+        available = products[0].available
+        count = len([product for product in products if product.available == available])
+        found = Product.find_by_availability(available)
+        self.assertEqual(found.count(), count)
+        for product in found:
+            self.assertEqual(product.available, available)
+
+    def test_find_by_category(self):
+        """It should Find Products by Category"""
+        products = ProductFactory.create_batch(10)
+        for product in products:
+            product.create()
+        category = products[0].category
+        count = len([product for product in products if product.category == category])
+        found = Product.find_by_category(category)
+        self.assertEqual(found.count(), count)
+        for product in found:
+            self.assertEqual(product.category, category)
